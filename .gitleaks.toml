@@ -1,0 +1,11 @@
+title = "cloud-native-app gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Generated or vendored paths that never hold secrets"
+paths = [
+  '''(^|/)target/''',
+  '''(^|/)\.mvn/wrapper/''',
+]
