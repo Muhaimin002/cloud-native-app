@@ -55,4 +55,4 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.organization=<your-org> -Dsonar.projectKey=Muhaimin002_cloud-native-app -Dsonar.qualitygate.wait=true
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.organization=muhaimin002 -Dsonar.projectKey=Muhaimin002_cloud-native-app -Dsonar.qualitygate.wait=true
