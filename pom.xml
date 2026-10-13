@@ -27,6 +27,9 @@
 		<url/>
 	</scm>
 	<properties>
+		<!-- Temporary overrides for CVEs fixed upstream; remove once Spring Boot ships these versions -->
+		<tomcat.version>11.0.25</tomcat.version>
+		<jackson-bom.version>3.1.7</jackson-bom.version>
 		<java.version>21</java.version>
 	</properties>
 	<dependencies>
