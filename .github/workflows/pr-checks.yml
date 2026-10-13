@@ -4,55 +4,79 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: the token can only read the repository.
 permissions:
   contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   gitleaks:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
-      - name: Gitleaks
-        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect --source /repo --config /repo/.gitleaks.toml --verbose
+          persist-credentials: false
+      - name: Gitleaks (full history, secrets redacted in output)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f detect --source /repo --config /repo/.gitleaks.toml --redact --verbose
 
   test:
+    needs: gitleaks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: mvn -B verify
+      - run: ./mvnw -B verify
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: surefire-reports
-          path: target/surefire-reports
+          name: test-reports
+          path: |
+            target/surefire-reports
+            target/site/jacoco
+          retention-days: 7
 
   dependency-scan:
+    needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      # Fixable HIGH and CRITICAL vulnerabilities fail the build. Accepted
+      # exceptions go in .trivyignore with a reason and an expiry date.
       - name: Trivy filesystem scan
-        run: docker run --rm -v "$PWD:/src" aquasec/trivy@sha256:3d1f862cb6c4fe13c1506f96f816096030d8d5ccdb2380a3069f7bf07daa86aa fs --severity HIGH,CRITICAL --exit-code 1 /src
+        run: docker run --rm -v "$PWD:/src" aquasec/trivy@sha256:3d1f862cb6c4fe13c1506f96f816096030d8d5ccdb2380a3069f7bf07daa86aa fs --severity HIGH,CRITICAL --ignore-unfixed --skip-version-check --exit-code 1 /src
 
   sonarqube:
+    needs: dependency-scan
+    # Secrets are not available to fork pull requests, so skip them there.
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: SonarQube analysis
+      - name: SonarQube analysis and quality gate
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.organization=muhaimin002 -Dsonar.projectKey=Muhaimin002_cloud-native-app -Dsonar.qualitygate.wait=true
+        run: ./mvnw -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:5.8.0.7211:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.organization=muhaimin002 -Dsonar.projectKey=Muhaimin002_cloud-native-app -Dsonar.qualitygate.wait=true
