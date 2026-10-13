@@ -7,4 +7,4 @@ read -r type sha < <(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.type +
 if [ "$type" = "tag" ]; then
   sha=$(gh api "repos/$repo/git/tags/$sha" --jq .object.sha)
 fi
-echo "$sha # $tag"
+echo "$repo@$sha # $tag"
