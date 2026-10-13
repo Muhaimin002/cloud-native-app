@@ -16,6 +16,8 @@ FROM eclipse-temurin:21-jre
 # Numeric UID so Kubernetes runAsNonRoot can verify it
 RUN groupadd --system --gid 10001 app \
  && useradd --system --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
+RUN rm -f /usr/bin/pebble
+RUN rm -f /usr/bin/pebble
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /workspace/target/*.jar /app/app.jar
 USER 10001:10001
