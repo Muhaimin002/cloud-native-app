@@ -87,6 +87,11 @@ jobs:
           name: scanned-image
       - name: Load the scanned image
         run: docker load -i image.tar
+      - name: Show OIDC claims (temporary debug, never prints the token)
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -sS -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          echo "$TOKEN" | jq -R 'split(".")[1] | gsub("-";"+") | gsub("_";"/") | @base64d | fromjson | {iss, aud, sub, repository, ref, job_workflow_ref}'
       - name: Authenticate to AWS with OIDC
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
